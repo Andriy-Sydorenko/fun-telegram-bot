@@ -3,12 +3,20 @@ import os
 import random
 
 from aiogram import Bot, Dispatcher, types
-from aiogram.filters import Command
+from aiogram.filters import (
+    Command,
+    CommandStart,
+    IS_MEMBER,
+    IS_NOT_MEMBER,
+    ChatMemberUpdatedFilter,
+)
+from aiogram.types.dice import DiceEmoji
 from dotenv import load_dotenv
-
 from engine import session
 from logger_config import logger
 from models import User
+import utils
+
 
 load_dotenv()
 
@@ -17,15 +25,17 @@ BOT_TOKEN = os.getenv("BOT_TOKEN")
 bot = Bot(token=BOT_TOKEN)
 dp = Dispatcher()
 
-SVOBODEN_STICKER = "CAACAgIAAxkBAAEMJ2JmS6ZeaqIypNnGu87SIgZci2gb8QAC5UYAAoZACEoJRP5JxfZ4FDUE"
+SVOBODEN_STICKER = (
+    "CAACAgIAAxkBAAEMJ2JmS6ZeaqIypNnGu87SIgZci2gb8QAC5UYAAoZACEoJRP5JxfZ4FDUE"
+)
 
 
-@dp.message(Command("start"))
+@dp.message(CommandStart())
 async def send_welcome(message: types.Message):
     user_name = message.from_user.username
     user = session.query(User).filter(User.username == user_name).first()
     if user:
-        reply_message_text = f"Hello, {user.custom_name}!"
+        reply_message_text = f"Hello, {user.pseudonym}!"
     else:
         reply_message_text = f"Hello, {user_name if user_name else 'бродяга'}!"
 
@@ -54,9 +64,11 @@ async def pidor_of_the_day(message: types.Message):
                 await message.answer(f"Підор дня: {mention}")
             else:
                 mention = f"[{chosen_user.first_name}](tg://user?id={chosen_user.id})"
-                await message.answer(f"Підор дня: {mention}", parse_mode='MarkdownV2')
+                await message.answer(f"Підор дня: {mention}", parse_mode="MarkdownV2")
 
-            logger.info(f"Randomly selected user from chat {chat_id} is {chosen_user.username}")
+            logger.info(
+                f"Randomly selected user from chat {chat_id} is {chosen_user.username}"
+            )
 
         else:
             await message.answer("No users found in the chat.")
@@ -67,18 +79,41 @@ async def pidor_of_the_day(message: types.Message):
 
 @dp.message(Command("check_my_info"))
 async def check_my_info(message: types.Message):
-    # TODO: works only for private chats, because chat_id == user_id in this case
-    chat_id = message.chat.id
-    user_id = message.from_user.id
-    await message.answer(f"Chat ID: {chat_id}\nUser ID: {user_id}")
+    text = await utils.get_user_info(message=message)
+    await message.reply(text=text)
 
 
-@dp.message()
-async def new_chat_member(message: types.Message):
-    new_members = message.new_chat_members
-    for member in new_members:
-        user_name = member.username
-        await message.answer(f"Welcome, {user_name}!")
+@dp.chat_member(ChatMemberUpdatedFilter(IS_NOT_MEMBER >> IS_MEMBER))
+async def new_chat_member(event: types.ChatMemberUpdated):
+    new_user = event.new_chat_member.user
+
+    result = await utils.create_user_in_db(username=new_user.username,
+                                           first_name=new_user.first_name,
+                                           full_name=new_user.full_name,
+                                           last_name=new_user.last_name,
+                                           telegram_id=new_user.id)
+    if isinstance(result, str):
+        return event.answer(result)
+
+    await event.answer(f"Welcome to our chat, {result.username if result.username else result.full_name}!")
+
+# TODO: Implement quote generating from the user message, like in Wardy bot:
+# https://t.me/WardyForum/1/1954
+
+@dp.message(Command("change_pseudonym"))
+async def change_pseudonym(message: types.Message) -> None:
+    command_args = message.text.split(maxsplit=1)
+    if len(command_args) < 2:
+        await message.reply("Please provide a pseudonym. Usage: /change_pseudonym <your pseudonym>")
+        return
+
+    pseudonym = command_args[1]
+    await utils.change_pseudonym_in_db(message=message, new_pseudonym=pseudonym)
+
+
+@dp.message(Command("throw_dice"))
+async def throw_dice(message: types.Message):
+    await message.answer_dice(emoji=DiceEmoji.DICE)
 
 
 async def main():
@@ -87,13 +122,3 @@ async def main():
 
 if __name__ == "__main__":
     asyncio.run(main())
-
-
-
-
-
-
-
-
-
-
