@@ -1,12 +1,9 @@
-import random
-
 from aiogram import types
 
 from engine import session
 from models import User
 from datetime import datetime
 import pytz
-import string
 
 
 timezone = pytz.timezone("Europe/Kiev")

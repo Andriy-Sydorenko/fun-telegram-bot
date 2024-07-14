@@ -9,13 +9,17 @@ from aiogram.filters import (
     IS_MEMBER,
     IS_NOT_MEMBER,
     ChatMemberUpdatedFilter,
+    StateFilter,
 )
+
+from aiogram.fsm.context import FSMContext
 from aiogram.types.dice import DiceEmoji
 from dotenv import load_dotenv
 from engine import session
 from logger_config import logger
 from models import User
 import utils
+from state_manager import StickerID
 
 
 load_dotenv()
@@ -25,9 +29,12 @@ BOT_TOKEN = os.getenv("BOT_TOKEN")
 bot = Bot(token=BOT_TOKEN)
 dp = Dispatcher()
 
-SVOBODEN_STICKER = (
-    "CAACAgIAAxkBAAEMJ2JmS6ZeaqIypNnGu87SIgZci2gb8QAC5UYAAoZACEoJRP5JxfZ4FDUE"
-)
+SVOBODEN_STICKER = "CAACAgIAAxkBAAEMJ2JmS6ZeaqIypNnGu87SIgZci2gb8QAC5UYAAoZACEoJRP5JxfZ4FDUE"
+T34_STICKERS = [
+    "CAACAgIAAxkBAAP2ZpRQsBhRjNj0WIhDgRJQ_TJUEUUAAitSAAIdsphIaq4AAYD1stiINQQ",
+    "CAACAgIAAxkBAAP8ZpRQ2FPEb7YL4UezY5yTM7XDtTsAAvRRAALJjZlIHIolGlenIlY1BA",
+    "CAACAgIAAxkBAAIBAAFmlFDnoiBXxqovS2Y0EBknYLotmwAC3kwAApfokUgkdm-FgbaECjUE",
+]
 
 
 @dp.message(CommandStart())
@@ -83,6 +90,28 @@ async def check_my_info(message: types.Message):
     await message.reply(text=text)
 
 
+@dp.message(Command("spawn_t64"))
+async def spawn_t64(message: types.Message):
+    await message.answer("Spawning T64...")
+    for sticker in T34_STICKERS:
+        await message.answer_sticker(sticker=sticker)
+
+
+@dp.message(Command("get_sticker_id"))
+async def get_sticker(message: types.Message, state: FSMContext):
+    await state.set_state(StickerID.waiting_for_sticker)
+    await message.answer("Please send a sticker.")
+
+
+@dp.message(StickerID.waiting_for_sticker)
+async def give_sticker_id(message: types.Message, state: FSMContext):
+    if sticker := message.sticker:
+        await message.answer(f"Sticker ID: {sticker.file_id}")
+    else:
+        await message.answer("This is not a sticker. Please send a sticker to get its ID.")
+    await state.clear()
+
+
 @dp.chat_member(ChatMemberUpdatedFilter(IS_NOT_MEMBER >> IS_MEMBER))
 async def new_chat_member(event: types.ChatMemberUpdated):
     new_user = event.new_chat_member.user
@@ -99,6 +128,8 @@ async def new_chat_member(event: types.ChatMemberUpdated):
 
 # TODO: Implement quote generating from the user message, like in Wardy bot:
 # https://t.me/WardyForum/1/1954
+# TODO: add whisper message command
+
 
 @dp.message(Command("change_pseudonym"))
 async def change_pseudonym(message: types.Message) -> None:
