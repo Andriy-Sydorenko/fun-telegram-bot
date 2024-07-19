@@ -28,6 +28,8 @@ from models import User
 import utils
 from state_manager import StickerID, StickerStates
 import sticker_id_constants
+from keyboards import get_cancel_keyboard
+
 
 load_dotenv()
 
@@ -48,6 +50,12 @@ async def send_welcome(message: types.Message):
 
     await message.answer(reply_message_text)
     logger.info(f"Sent welcome message to dear {user_name} - '{reply_message_text}'")
+
+
+@dp.message(Command("cancel"))
+async def cancel_operation(message: types.Message, state: FSMContext):
+    await message.answer("Operation cancelled.")
+    await state.clear()
 
 
 @dp.message(Command("idi_nahuy"))
@@ -115,6 +123,7 @@ async def give_sticker_id(message: types.Message, state: FSMContext):
 @dp.chat_member(ChatMemberUpdatedFilter(IS_NOT_MEMBER >> IS_MEMBER))
 async def new_chat_member(event: types.ChatMemberUpdated):
     new_user = event.new_chat_member.user
+    keyboard = get_cancel_keyboard()
 
     result = await utils.create_user_in_db(username=new_user.username,
                                            first_name=new_user.first_name,
@@ -122,9 +131,11 @@ async def new_chat_member(event: types.ChatMemberUpdated):
                                            last_name=new_user.last_name,
                                            telegram_id=new_user.id)
     if isinstance(result, str):
-        return event.answer(result)
+        await event.bot.send_message(event.chat.id, result, reply_markup=keyboard)
+    else:
+        welcome_text = f"Welcome to our chat, {result.username if result.username else result.full_name}! Feel free to use the commands."
+        await event.bot.send_message(event.chat.id, welcome_text, reply_markup=keyboard)
 
-    await event.answer(f"Welcome to our chat, {result.username if result.username else result.full_name}!")
 
 # TODO: Implement quote generating from the user message, like in Wardy bot:
 # https://t.me/WardyForum/1/1954
@@ -188,17 +199,22 @@ async def throw_dice(message: types.Message):
     await message.answer_dice(emoji=DiceEmoji.DICE)
 
 
-@dp.message(Command('give_sticker'))
+@dp.message(Command("give_sticker"))
 async def give_sticker_command(message: types.Message, state: FSMContext):
     await message.reply("Please upload an image to create a sticker.")
     await state.set_state(StickerStates.waiting_for_image)
 
 
 @dp.message(StickerStates.waiting_for_image)
-async def resend_image(message: types.Message):
+async def resend_image(message: types.Message, state: FSMContext):
+    if message.text == "/clear":
+        await message.reply("Cancelled the operation.")
+        await state.clear()
+        return
     if message.photo:
         photo = message.photo[-1]
-        await message.reply_photo(photo.file_id)
+        await message.reply_photo(photo=photo.file_id)
+        await state.clear()
     else:
         await message.reply("Please send a photo, this is not compatible format.")
 
