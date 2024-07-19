@@ -57,6 +57,20 @@ async def get_user_info(message: types.Message) -> str:
     return format_user_data_output(user)
 
 
+async def get_user_by_telegram_id(telegram_id: int) -> User | str:
+    user = session.query(User).filter_by(telegram_id=telegram_id).first()
+    if user:
+        return user
+    return "User not found"
+
+
+async def get_user_by_username(username: str) -> User | str:
+    user = session.query(User).filter_by(username=username).first()
+    if user:
+        return user
+    return "User not found"
+
+
 def format_user_data_output(user: User) -> str:
     formatted_joined_at = user.joined_at.strftime('%d of %B %Y, %H:%M')
 

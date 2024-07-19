@@ -10,6 +10,7 @@ aiogram = "3.6.0"
 alembic = "1.13.1"
 SQLAlchemy = "2.0.30"
 pytz = "2024.1"
+pillow = "^10.4.0"
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]
