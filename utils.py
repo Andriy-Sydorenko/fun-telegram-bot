@@ -1,19 +1,17 @@
+from datetime import datetime
+
+import pytz
 from aiogram import types
 
 from engine import session
 from models import User
-from datetime import datetime
-import pytz
-
 
 timezone = pytz.timezone("Europe/Kiev")
 
 
-async def create_user_in_db(username: str,
-                            first_name: str,
-                            full_name: str,
-                            telegram_id: int,
-                            last_name: str = None) -> User | str:
+async def create_user_in_db(
+    username: str, first_name: str, full_name: str, telegram_id: int, last_name: str = None
+) -> User | str:
 
     user = session.query(User).filter_by(telegram_id=telegram_id).first()
 
@@ -22,12 +20,14 @@ async def create_user_in_db(username: str,
 
     joined_at = datetime.now(timezone)
 
-    new_user = User(username=username,
-                    first_name=first_name,
-                    last_name=last_name,
-                    full_name=full_name,
-                    joined_at=joined_at,
-                    telegram_id=telegram_id)
+    new_user = User(
+        username=username,
+        first_name=first_name,
+        last_name=last_name,
+        full_name=full_name,
+        joined_at=joined_at,
+        telegram_id=telegram_id,
+    )
     session.add(new_user)
     session.commit()
 
@@ -72,11 +72,13 @@ async def get_user_by_username(username: str) -> User | str:
 
 
 def format_user_data_output(user: User) -> str:
-    formatted_joined_at = user.joined_at.strftime('%d of %B %Y, %H:%M')
+    formatted_joined_at = user.joined_at.strftime("%d of %B %Y, %H:%M")
 
-    user_info_message = (f"Name: {user.full_name}\n"
-                         f"Username: {user.username}\n"
-                         f"Pseudonym: {user.pseudonym if user.pseudonym else "Didn't set"}\n"
-                         f"Joined at: {formatted_joined_at}\n")
+    user_info_message = (
+        f"Name: {user.full_name}\n"
+        f"Username: {user.username}\n"
+        f"Pseudonym: {user.pseudonym if user.pseudonym else "Didn't set"}\n"
+        f"Joined at: {formatted_joined_at}\n"
+    )
 
     return user_info_message

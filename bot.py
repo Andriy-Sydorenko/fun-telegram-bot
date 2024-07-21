@@ -4,26 +4,28 @@ import random
 
 from aiogram import Bot, Dispatcher, types
 from aiogram.filters import (
-    Command,
-    CommandStart,
     IS_MEMBER,
     IS_NOT_MEMBER,
     ChatMemberUpdatedFilter,
+    Command,
+    CommandStart,
 )
-
 from aiogram.fsm.context import FSMContext
 from aiogram.types.dice import DiceEmoji
 from dotenv import load_dotenv
 
-from bot_utils import convert_image_to_webp, escape_markdown_v2, mention_user_without_username
+import sticker_id_constants
+import utils
+from bot_utils import (
+    convert_image_to_webp,
+    escape_markdown_v2,
+    mention_user_without_username,
+)
 from engine import session
+from keyboards import get_cancel_keyboard
 from logger_config import logger
 from models import User
-import utils
 from state_manager import StickerID, StickerStates
-import sticker_id_constants
-from keyboards import get_cancel_keyboard
-
 
 load_dotenv()
 
@@ -123,15 +125,19 @@ async def new_chat_member(event: types.ChatMemberUpdated):
     new_user = event.new_chat_member.user
     keyboard = get_cancel_keyboard()
 
-    result = await utils.create_user_in_db(username=new_user.username,
-                                           first_name=new_user.first_name,
-                                           full_name=new_user.full_name,
-                                           last_name=new_user.last_name,
-                                           telegram_id=new_user.id)
+    result = await utils.create_user_in_db(
+        username=new_user.username,
+        first_name=new_user.first_name,
+        full_name=new_user.full_name,
+        last_name=new_user.last_name,
+        telegram_id=new_user.id,
+    )
     if isinstance(result, str):
         await event.bot.send_message(event.chat.id, result, reply_markup=keyboard)
     else:
-        welcome_text = f"Welcome to our chat, {result.username if result.username else result.full_name}! Feel free to use the commands."
+        welcome_text = f"Welcome to our chat, {
+            result.username if result.username else result.full_name
+        }! Feel free to use the commands."
         await event.bot.send_message(event.chat.id, welcome_text, reply_markup=keyboard)
 
 

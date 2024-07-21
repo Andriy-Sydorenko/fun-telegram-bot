@@ -1,7 +1,7 @@
-from PIL import Image
 import io
-from aiogram import Bot
-from aiogram import types
+
+from aiogram import Bot, types
+from PIL import Image
 
 
 async def convert_image_to_webp(bot: Bot, photo: types.PhotoSize) -> bytes:
