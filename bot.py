@@ -2,13 +2,7 @@ import asyncio
 import os
 import random
 
-import aiohttp
-import requests
-from io import BytesIO
-from PIL import Image
-
-from aiogram import Bot, Dispatcher, types, F
-from aiogram.enums import ContentType
+from aiogram import Bot, Dispatcher, types
 from aiogram.filters import (
     Command,
     CommandStart,
@@ -19,10 +13,9 @@ from aiogram.filters import (
 
 from aiogram.fsm.context import FSMContext
 from aiogram.types.dice import DiceEmoji
-from aiogram.utils.keyboard import InlineKeyboardBuilder
 from dotenv import load_dotenv
 
-from bot_utils import convert_image_to_webp
+from bot_utils import convert_image_to_webp, escape_markdown_v2, mention_user_without_username
 from engine import session
 from logger_config import logger
 from models import User
@@ -81,11 +74,13 @@ async def pidor_of_the_day(message: types.Message):
                 mention = f"@{chosen_user.username}"
                 await message.answer(f"Підор дня: {mention}")
             else:
-                mention = f"[{chosen_user.first_name}](tg://user?id={chosen_user.id})"
+                mention = mention_user_without_username(user=chosen_user)
                 await message.answer(f"Підор дня: {mention}", parse_mode="MarkdownV2")
 
             logger.info(
-                f"Randomly selected user from chat {chat_id} is {chosen_user.username}"
+                f"Randomly selected user from chat {chat_id} is {
+                    chosen_user.username if chosen_user.username else chosen_user.first_name
+                }"
             )
 
         else:
@@ -104,7 +99,7 @@ async def check_my_info(message: types.Message):
 @dp.message(Command("spawn_t64"))
 async def spawn_t64(message: types.Message):
     await message.answer("Spawning T64...")
-    for sticker in sticker_id_constants.T34_STICKERS:
+    for sticker in sticker_id_constants.T64_STICKERS:
         await message.answer_sticker(sticker=sticker)
 
 
@@ -202,7 +197,7 @@ async def throw_dice(message: types.Message):
     await message.answer_dice(emoji=DiceEmoji.DICE)
 
 
-@dp.message(Command("get_sticker"))
+@dp.message(Command("convert_photo"))
 async def give_sticker_command(message: types.Message, state: FSMContext):
     await message.reply("Please upload an image to create a sticker.")
     await state.set_state(StickerStates.waiting_for_image)
@@ -218,6 +213,28 @@ async def resend_image(message: types.Message, state: FSMContext):
         await state.clear()
     else:
         await message.reply("Please send a photo, this is not compatible format.")
+
+
+@dp.message(Command("fuck"))
+async def fuck_user(message: types.Message):
+    if message.reply_to_message:
+        fucked_user = message.reply_to_message.from_user
+        fucker_user = message.from_user
+
+        if fucked_user.username:
+            fucked_user_mention = "@" + escape_markdown_v2(fucked_user.username)
+        else:
+            fucked_user_mention = mention_user_without_username(user=fucked_user)
+
+        if fucker_user.username:
+            fucker_user_mention = "@" + escape_markdown_v2(fucker_user.username)
+        else:
+            fucker_user_mention = mention_user_without_username(user=fucker_user)
+
+        reply_text = f"||{fucker_user_mention} fucked {fucked_user_mention}||"
+        await message.reply(reply_text, parse_mode="MarkdownV2")
+    else:
+        await message.reply("Reply to a message of a user you want to fuck")
 
 
 async def main():
