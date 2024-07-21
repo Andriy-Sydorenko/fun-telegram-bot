@@ -18,10 +18,11 @@ from aiogram.filters import (
 )
 
 from aiogram.fsm.context import FSMContext
-from aiogram.types import InputFile
 from aiogram.types.dice import DiceEmoji
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 from dotenv import load_dotenv
+
+from bot_utils import convert_image_to_webp
 from engine import session
 from logger_config import logger
 from models import User
@@ -54,14 +55,16 @@ async def send_welcome(message: types.Message):
 
 @dp.message(Command("cancel"))
 async def cancel_operation(message: types.Message, state: FSMContext):
+    if not state.get_state():
+        return
     await message.answer("Operation cancelled.")
     await state.clear()
 
 
 @dp.message(Command("idi_nahuy"))
 async def cope_with_bully(message: types.Message):
-    await message.answer("Кусай за хуй")
-    await message.answer_sticker(sticker=sticker_id_constants.SVOBODEN_STICKER)
+    await message.reply("Кусай за хуй")
+    await message.reply_sticker(sticker=sticker_id_constants.SVOBODEN_STICKER)
     logger.info(f"Coped with {message.from_user.username}")
 
 
@@ -140,7 +143,7 @@ async def new_chat_member(event: types.ChatMemberUpdated):
 # TODO: Implement quote generating from the user message, like in Wardy bot:
 # https://t.me/WardyForum/1/1954
 # TODO: add whisper message command
-# TODO: poll generator
+# TODO: random poll generator
 
 
 # @dp.message(Command("whisper"))
@@ -199,7 +202,7 @@ async def throw_dice(message: types.Message):
     await message.answer_dice(emoji=DiceEmoji.DICE)
 
 
-@dp.message(Command("give_sticker"))
+@dp.message(Command("get_sticker"))
 async def give_sticker_command(message: types.Message, state: FSMContext):
     await message.reply("Please upload an image to create a sticker.")
     await state.set_state(StickerStates.waiting_for_image)
@@ -207,13 +210,11 @@ async def give_sticker_command(message: types.Message, state: FSMContext):
 
 @dp.message(StickerStates.waiting_for_image)
 async def resend_image(message: types.Message, state: FSMContext):
-    if message.text == "/clear":
-        await message.reply("Cancelled the operation.")
-        await state.clear()
-        return
     if message.photo:
         photo = message.photo[-1]
-        await message.reply_photo(photo=photo.file_id)
+        webp_image_bytes = await convert_image_to_webp(bot=bot, photo=photo)
+        webp_image_file = types.input_file.BufferedInputFile(webp_image_bytes, filename="image.webp")
+        await message.reply_document(document=webp_image_file)
         await state.clear()
     else:
         await message.reply("Please send a photo, this is not compatible format.")
